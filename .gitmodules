@@ -1,0 +1,6 @@
+[submodule "AsciiGraph"]
+	path = AsciiGraph
+	url = git@github.com:Jkutkut/PY-AsciiGraph.git
+[submodule "API42"]
+	path = API42
+	url = git@github.com:Jkutkut/PY-API42.git
