@@ -6,11 +6,10 @@
 #    By: jre-gonz <jre-gonz@student.42madrid.com    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2022/09/12 15:37:56 by jre-gonz          #+#    #+#              #
-#    Updated: 2022/09/12 22:59:12 by jre-gonz         ###   ########.fr        #
+#    Updated: 2022/09/12 23:41:26 by jre-gonz         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-from Nanoshell import NanoShell
 from AsciiGraph import AsciiGraph
 from API42 import API42
 
@@ -19,7 +18,6 @@ from datetime import datetime as dt, timedelta, timezone
 from math import ceil
 
 class WhiteNova():
-
     def __init__(self):
         self.api = API42()
 
@@ -54,11 +52,40 @@ class WhiteNova():
         end_str = end.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         return {"start": start, "end": end, "start_str": start_str, "end_str": end_str}
 
+    def _corrections_planned(cls, info: list):
+        if len(info) == 0:
+            return "Nothing to correct here :S\n"
+        s = ""
+        for correction in info:
+            corrector = f"{correction['corrector']['login']} ({correction['corrector']['id']})"
+            correcteds = ""
+            for corrected in correction['team']['users']:
+                correcteds = f"{correcteds}    - {corrected['login']} ({corrected['id']}){' Leader' if corrected['leader'] else ''}\n"
+            project_name = correction['team']['project_gitlab_path']
+            s = f"{s}******************************\n"
+            s = f"{s} - Project name: {project_name}\n"
+            s = f"{s} - Corrector: {corrector}\n"
+            s = f"{s} - Correcteds:\n{correcteds}"
+            s = f"{s} - Begins at: {cls.dateformat(correction['begin_at'])} -> {round(int(correction['scale']['duration']) / 60)}min.\n"
+            # s = f"{s} - Repo url: {correction['team']['repo_url']}\n"
+            s = f"{s} - Team name: {correction['team']['name']}\n"
+            # s = f"{s} - Corrections required: {correction['scale']['correction_number']}\n"
+            if correction['team']['closed?']:
+                s = f"{s}---------  Feedback  ---------\n"
+                s = f"{s}{correction['corrector']['login']}:\n{correction['comment']}\n\n"
+                for feedbck in correction['feedbacks']:
+                    if feedbck['user'] != None:
+                        s = f"{s}{feedbck['user']['login']}: {feedbck['rating']}\n{feedbck['comment']}\n"
+                    else:
+                        s = f"{s}{feedbck['comment']} {feedbck['rating']}\n"
+            s = f"{s}******************************\n\n"
+        return s
+
     def _parse(self, user: str, period: dict, locations: list, corrections: list, full_report: bool = True) -> str:
         TIME_FORMAT = "%H:%M %d-%m"
-        days = ceil((period['end'] - period['start']).total_seconds() / 3600 / 24)
+        days = ceil((period['end'] - period['start']).total_seconds() / 3600 / 24) + 1
 
-        s = f"{user}'s {'whitenova' if days == 14 else str(days) + ' days period'}: (Time zone: Madrid)\n"
+        s = f"\n{user}'s {'whitenova' if days == 14 else str(days) + ' days period'}: (Time zone: Madrid)\n"
         s = f"{s}  - Start: {self._dateformat(period.get('start_str'), TIME_FORMAT)}\n"
         s = f"{s}  - End: {self._dateformat(period.get('end_str'), TIME_FORMAT)}\n\n"
         
@@ -109,39 +136,14 @@ class WhiteNova():
         s = f"{s}The official metrics are the only ones that are correct. This is just an approximation.\n"
         return s
 
-    def _corrections_planned(cls, info: list):
-        if len(info) == 0:
-            return "Nothing to correct here :S\n"
-        s = ""
-        for correction in info:
-            corrector = f"{correction['corrector']['login']} ({correction['corrector']['id']})"
-            correcteds = ""
-            for corrected in correction['team']['users']:
-                correcteds = f"{correcteds}    - {corrected['login']} ({corrected['id']}){' Leader' if corrected['leader'] else ''}\n"
-            project_name = correction['team']['project_gitlab_path']
-            s = f"{s}******************************\n"
-            s = f"{s} - Project name: {project_name}\n"
-            s = f"{s} - Corrector: {corrector}\n"
-            s = f"{s} - Correcteds:\n{correcteds}"
-            s = f"{s} - Begins at: {cls.dateformat(correction['begin_at'])} -> {round(int(correction['scale']['duration']) / 60)}min.\n"
-            # s = f"{s} - Repo url: {correction['team']['repo_url']}\n"
-            s = f"{s} - Team name: {correction['team']['name']}\n"
-            # s = f"{s} - Corrections required: {correction['scale']['correction_number']}\n"
-            if correction['team']['closed?']:
-                s = f"{s}---------  Feedback  ---------\n"
-                s = f"{s}{correction['corrector']['login']}:\n{correction['comment']}\n\n"
-                for feedbck in correction['feedbacks']:
-                    if feedbck['user'] != None:
-                        s = f"{s}{feedbck['user']['login']}: {feedbck['rating']}\n{feedbck['comment']}\n"
-                    else:
-                        s = f"{s}{feedbck['comment']} {feedbck['rating']}\n"
-            s = f"{s}******************************\n\n"
-        return s
+    def _corrections_as(self, ctype: str, user_id, filters: list = [], multi_request: bool = False):
+        if ctype != "as_corrector" and ctype != "as_corrected":
+            raise Exception("The correction type must be 'as_corrector' or 'as_corrected'")
+        if all(["sort" not in x for x in filters]):
+            filters.append("sort=begin_at")
+        return self.api.get(f"/v2/users/{user_id}/scale_teams/{ctype}", filters, multi_request=multi_request)
 
     def __call__(self, login: str, offset: int, full_report: bool = False) -> str:
-        '''
-        Obtains the whitenova report of the given user_id in the given period.
-        '''
         period = self._whitenova_period(offset)
         # Log times
         filterStart = f"range[begin_at]={period.get('start_str')},{period.get('end_str')}"
@@ -157,83 +159,6 @@ class WhiteNova():
             if lend > period.get("end"):
                 locations[-1]["end_at"] = period.get("end").strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         # Corrections
-        # corrections = self.corrections_as("as_corrector", self.get_id(login), [filterStart, sortFilter], True)
-        # TODO
-        corrections = []
+        user_id = self.api.get(f"/v2/users/{login}/campus_users")[0]["user_id"]
+        corrections = self._corrections_as("as_corrector", user_id, [filterStart, sortFilter], True)
         return self._parse(login, period, locations, corrections, full_report=full_report)
-
-class Mole(NanoShell):
-
-    LOGIN_USAGE = "<LOGIN>"
-
-    CMDS = NanoShell.CMDS | {
-        "WHITENOVA": ["whitenova", "wnova"],
-    }
-
-    FLAGS = NanoShell.FLAGS | {
-        # WHITENOVA
-        "WHITENOVA_OFFSET": "-p",
-        "WHITENOVA_FULL": "--full",
-    }
-
-    USAGE = NanoShell.USAGE | {
-        "WHITENOVA": f"{LOGIN_USAGE} [{FLAGS['WHITENOVA_OFFSET']} N] [{FLAGS['WHITENOVA_FULL']}]",
-    }
-
-    DESCRIPTION = NanoShell.DESCRIPTION | {
-        "WHITENOVA": "Show the whitenova of the given user.",
-    }
-
-    def __init__(self, debug: bool = False):
-        super().__init__(debug)
-        self.nova = WhiteNova()
-
-    def _handle_cmd(self, cmd: list) -> bool:
-        if super()._handle_cmd(cmd):
-            return True
-        if cmd[0] in self.CMDS["WHITENOVA"]:
-            self.whitenova(cmd)
-        else:
-            return False
-        return True
-
-    # ******* COMMANDS LOGIC *******
-
-    def whitenova(self, c: list) -> None:
-        if len(c) < 2 or len(c) > 4:
-            return self._usage(c)
-        login = c[1]
-        offset = 0
-        full_report = False
-        i = 2
-        while i < len(c):
-            if i + 1 >= len(c):
-                if c[i] == self.FLAGS['WHITENOVA_FULL']:
-                    full_report = True
-                    i = i + 1
-                    continue
-                return self._usage(c)
-            elif c[i] == self.FLAGS['WHITENOVA_OFFSET'] and\
-                c[i + 1].isnumeric():
-                offset = int(c[i + 1])
-            else:
-                return self._usage(c)
-            i = i + 2
-        self.print(self.nova(login, offset, full_report))
-
-
-    def _title(self):
-        return f"""
-███    ███  ██████  ██      ███████
-████  ████ ██    ██ ██      ██     
-██ ████ ██ ██    ██ ██      █████  
-██  ██  ██ ██    ██ ██      ██     
-██      ██  ██████  ███████ ███████
-
-"""
-
-if __name__ == "__main__":
-    w = Mole()
-    # w.run()
-    w.whitenova(["whitenova", "jre-gonz"])
-    # w.whitenova(["whitenova", "jre-gonz", "-p", "1", "--full"])
