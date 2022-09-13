@@ -52,7 +52,7 @@ class WhiteNova():
         end_str = end.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         return {"start": start, "end": end, "start_str": start_str, "end_str": end_str}
 
-    def _corrections_planned(cls, info: list):
+    def _corrections_planned(self, info: list):
         if len(info) == 0:
             return "Nothing to correct here :S\n"
         s = ""
@@ -66,7 +66,7 @@ class WhiteNova():
             s = f"{s} - Project name: {project_name}\n"
             s = f"{s} - Corrector: {corrector}\n"
             s = f"{s} - Correcteds:\n{correcteds}"
-            s = f"{s} - Begins at: {cls.dateformat(correction['begin_at'])} -> {round(int(correction['scale']['duration']) / 60)}min.\n"
+            s = f"{s} - Begins at: {self._dateformat(correction['begin_at'])} -> {round(int(correction['scale']['duration']) / 60)}min.\n"
             # s = f"{s} - Repo url: {correction['team']['repo_url']}\n"
             s = f"{s} - Team name: {correction['team']['name']}\n"
             # s = f"{s} - Corrections required: {correction['scale']['correction_number']}\n"
