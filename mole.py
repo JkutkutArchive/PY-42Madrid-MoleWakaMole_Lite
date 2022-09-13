@@ -51,18 +51,18 @@ class Mole(NanoShell):
     # ******* COMMANDS LOGIC *******
 
     def whitenova(self, c: list) -> None:
-        if len(c) < 2 or len(c) > 4:
+        if len(c) < 2 or len(c) > 5:
             return self._usage(c)
         login = c[1]
         offset = 0
         full_report = False
         i = 2
         while i < len(c):
-            if i + 1 >= len(c):
-                if c[i] == self.FLAGS['WHITENOVA_FULL']:
-                    full_report = True
-                    i = i + 1
-                    continue
+            if c[i] == self.FLAGS['WHITENOVA_FULL']:
+                full_report = True
+                i = i + 1
+                continue
+            elif i + 1 >= len(c):
                 return self._usage(c)
             elif c[i] == self.FLAGS['WHITENOVA_OFFSET'] and\
                 c[i + 1].isnumeric():
