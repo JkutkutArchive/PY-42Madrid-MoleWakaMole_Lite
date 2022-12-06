@@ -1,4 +1,7 @@
-# MoleWakaMole:
+# MoleWakaMole [DEPRECATED]:
+
+**Note**: This repository has no longer support.
+
 Application written in Python3 with a simple terminal to obtain data from the 42Network API.
 
 ## Running the program:
